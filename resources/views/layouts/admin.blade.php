@@ -21,6 +21,37 @@
 
     <!-- Favicon -->
     <link href="{{ asset('img/favicon.png') }}" rel="icon" type="image/png">
+
+    <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+    <script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('vendor/jquery-easing/jquery.easing.min.js') }}"></script>
+    <script src="{{ asset('js/sb-admin-2.min.js') }}"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+    <style>
+        /* Membesarkan ukuran checkbox */
+        .form-check-input {
+            transform: scale(1.5);
+            /* Sesuaikan ukuran */
+            margin-right: 10px;
+            /* Memberikan jarak */
+        }
+        #invoiceItemsTable {
+            table-layout: fixed; /* Membuat lebar tabel tetap */
+            width: 100%;
+        }
+
+        #invoiceItemsTable th,
+        #invoiceItemsTable td {
+            white-space: nowrap; /* Mencegah teks turun ke bawah */
+            vertical-align: middle;
+        }
+
+        #invoiceItemsTable .product-select {
+            max-width: 200px; /* Membatasi select agar tidak melebar */
+        }     
+    </style>
 </head>
 <body id="page-top">
 
@@ -49,30 +80,84 @@
 
         <!-- Divider -->
         <hr class="sidebar-divider">
-
-        <!-- Heading -->
+        
+        <!-- Heading Menu -->
         <div class="sidebar-heading">
-            {{ __('Settings') }}
+            {{ __('Menu') }}
         </div>
 
-        <!-- Nav Item - Profile -->
-        <li class="nav-item {{ Nav::isRoute('profile') }}">
-            <a class="nav-link" href="{{ route('profile') }}">
-                <i class="fas fa-fw fa-user"></i>
-                <span>{{ __('Profile') }}</span>
+        <!-- Nav Item - Supplier, Product, Warehouse Collapse Menu CRUD -->
+        <li class="nav-item {{ Nav::isRoute('units.*') }}">
+            <a class="nav-link" href="{{ route('units.index') }}">
+                <i class="fa-solid fa-box-open"></i>
+                <span>{{ __('Units') }}</span>
             </a>
         </li>
-
-        <!-- Nav Item - About -->
-        <li class="nav-item {{ Nav::isRoute('about') }}">
-            <a class="nav-link" href="{{ route('about') }}">
-                <i class="fas fa-fw fa-hands-helping"></i>
-                <span>{{ __('About') }}</span>
+        <li class="nav-item {{ Nav::isRoute('products.*') }}">
+            <a class="nav-link" href="{{ route('products.index') }}">
+                <i class="fa fa-shopping-cart"></i>
+                <span>{{ __('Product') }}</span>
+            </a>
+        </li>
+        <li class="nav-item {{ Nav::isRoute('suppliers.*') }}">
+            <a class="nav-link" href="{{ route('suppliers.index') }}">
+                <i class="fas fa-fw fa-user"></i>
+                <span>{{ __('Supplier') }}</span>
+            </a>
+        </li>
+        <li class="nav-item {{ Nav::isRoute('payments.*') }}">
+            <a class="nav-link" href="{{ route('payments.index') }}">
+                <i class="fa fa-credit-card-alt"></i>
+                <span>{{ __('Payment') }}</span>
+            </a>
+        </li>
+        <li class="nav-item {{ Nav::isRoute('warehouses.*') }}">
+            <a class="nav-link" href="{{ route('warehouses.index') }}">
+                <i class="fas fa-home"></i>
+                <span>{{ __('Warehouse') }}</span>
+            </a>
+        </li>
+        <li class="nav-item {{ Nav::isRoute('invoice.*') }}">
+            <a class="nav-link" href="{{ route('invoice.index') }}">
+                <i class="fa fa-file-invoice"></i>
+                <span>{{ __('Invoice') }}</span>
             </a>
         </li>
 
         <!-- Divider -->
-        <hr class="sidebar-divider d-none d-md-block">
+        <hr class="sidebar-divider">
+        
+        <!-- Heading Menu -->
+        <div class="sidebar-heading">
+            {{ __('Users and Roles') }}
+        </div>
+
+        <!-- Nav Item - Role and Permission Collapse Menu CRUD -->
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true"
+                aria-controls="collapseTwo">
+                <i class="fas fa-fw fa-cog"></i>
+                <span>{{ __('Users and Roles') }}</span>
+            </a>
+
+            <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    @can('list user')
+                        <a class="collapse-item" href="{{route('users.index')}}">{{ __('Users') }}</a>
+                    @else
+                        <a class="collapse-item" href="#" disabled>{{ __('Users') }}</a>
+                    @endcan
+                    @can('list role')
+                        <a class="collapse-item" href="{{route('roles.index')}}">{{ __('Roles') }}</a>
+                    @else
+                        <a class="collapse-item" href="#" disabled>{{ __('Roles') }}</a>
+                    @endcan
+                </div>
+            </div>
+        </li>
+        
+        <!-- Divider -->
+        <hr class="sidebar-divider">
 
         <!-- Sidebar Toggler (Sidebar) -->
         <div class="text-center d-none d-md-inline">
@@ -95,18 +180,6 @@
                 <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                     <i class="fa fa-bars"></i>
                 </button>
-
-                <!-- Topbar Search -->
-                <form class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
-                    <div class="input-group">
-                        <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2">
-                        <div class="input-group-append">
-                            <button class="btn btn-primary" type="button">
-                                <i class="fas fa-search fa-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-                </form>
 
                 <!-- Topbar Navbar -->
                 <ul class="navbar-nav ml-auto">
@@ -133,11 +206,11 @@
 
                     <!-- Nav Item - Alerts -->
                     <li class="nav-item dropdown no-arrow mx-1">
-                        <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        {{-- <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             <i class="fas fa-bell fa-fw"></i>
                             <!-- Counter - Alerts -->
                             <span class="badge badge-danger badge-counter">3+</span>
-                        </a>
+                        </a> --}}
                         <!-- Dropdown - Alerts -->
                         <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="alertsDropdown">
                             <h6 class="dropdown-header">
@@ -182,11 +255,11 @@
 
                     <!-- Nav Item - Messages -->
                     <li class="nav-item dropdown no-arrow mx-1">
-                        <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        {{-- <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             <i class="fas fa-envelope fa-fw"></i>
                             <!-- Counter - Messages -->
                             <span class="badge badge-danger badge-counter">7</span>
-                        </a>
+                        </a> --}}
                         <!-- Dropdown - Messages -->
                         <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="messagesDropdown">
                             <h6 class="dropdown-header">
@@ -250,14 +323,14 @@
                                 <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                 {{ __('Profile') }}
                             </a>
-                            <a class="dropdown-item" href="javascript:void(0)">
+                            {{-- <a class="dropdown-item" href="javascript:void(0)">
                                 <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
                                 {{ __('Settings') }}
                             </a>
                             <a class="dropdown-item" href="javascript:void(0)">
                                 <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
                                 {{ __('Activity Log') }}
-                            </a>
+                            </a> --}}
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
                                 <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
@@ -325,9 +398,22 @@
 </div>
 
 <!-- Scripts -->
-<script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
-<script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
-<script src="{{ asset('vendor/jquery-easing/jquery.easing.min.js') }}"></script>
-<script src="{{ asset('js/sb-admin-2.min.js') }}"></script>
+
+<script>
+    $(document).ready(function () {
+        // Fungsi untuk memformat angka ke format Rupiah
+        function formatRupiah(total) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR'
+            }).format(total);
+        }
+         // Format price pada table
+        $('.prices').each(function () {
+            let price = $(this).data('price');
+            $(this).text(formatRupiah(price));
+        });
+    });
+</script>
 </body>
 </html>
