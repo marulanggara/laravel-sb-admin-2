@@ -60,21 +60,6 @@ class SupplierController extends Controller
         // Save data supplier
         Supplier::addSupplier($request->all());
 
-        // Ambil data yang baru saja disimpan
-        $newSupplier = DB::table('suppliers')->where('name', $request->name)->first();
-
-        // Simpan Log supplier
-        $logData = [
-            'user_id' => auth()->user()->id,
-            'supplier_id' => $newSupplier->id,
-            'action' => 'create',
-            'old_data' => json_encode([]),
-            'new_data' => json_encode($newSupplier),
-        ];
-
-        // Simpan log supplier
-        SupplierHistory::create($logData);
-
         return redirect()->route('suppliers.index')->with('success', 'Supplier added successfully');
     }
 
@@ -109,6 +94,7 @@ class SupplierController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        // dd($request->all());
         // validasi input
         $request->validate([
             'name' => 'required|string|max:255',
@@ -136,24 +122,11 @@ class SupplierController extends Controller
     public function destroy(string $id)
     {
         // Hapus supplier dari database
-        $supplier = Supplier::findOrFail($id);
-        if (!$supplier) {
-            return redirect()->route('suppliers.index')->with('error', 'Supplier not found or failed to delete');
+        $delete = Supplier::deleteSupplier($id);
+        if($delete) {
+            return redirect()->route('suppliers.index')->with('success', 'Supplier deleted successfully');
         }
-
-        // Simpan log supplier
-        $logData = [
-            'user_id' => auth()->user()->id,
-            'supplier_id' => $id,
-            'action' => 'delete',
-            'old_data' => json_encode($supplier),
-            'new_data' => json_encode([]),
-        ];
-        SupplierHistory::create($logData);
-
-        // Hapus supplier
-        $supplier->delete();
-        return redirect()->route('suppliers.index')->with('success', 'Supplier deleted successfully');
+        return redirect()->route('suppliers.index')->with('error', 'Supplier not found or failed to delete');
     }
 
     // Show supplier log

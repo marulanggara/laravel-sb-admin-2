@@ -26,10 +26,17 @@
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
     <script src="{{ asset('vendor/jquery-easing/jquery.easing.min.js') }}"></script>
     <script src="{{ asset('js/sb-admin-2.min.js') }}"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
     <style>
+        input[type="checkbox"].larger {
+            transform: scale(1.5);
+            margin:3px;
+        }
+
         /* Membesarkan ukuran checkbox */
         .form-check-input {
             transform: scale(1.5);
@@ -40,6 +47,17 @@
         #invoiceItemsTable {
             table-layout: fixed; /* Membuat lebar tabel tetap */
             width: 100%;
+        }
+
+        #totalTable {
+            table-layout: fixed; /* Membuat lebar tabel tetap */
+            width: 100%;
+        }
+
+        #totalTable th,
+        #totalTable td {
+            white-space: nowrap; /* Mencegah teks turun ke bawah */
+            vertical-align: middle;
         }
 
         #invoiceItemsTable th,
@@ -87,17 +105,27 @@
         </div>
 
         <!-- Nav Item - Supplier, Product, Warehouse Collapse Menu CRUD -->
-        <li class="nav-item {{ Nav::isRoute('units.*') }}">
-            <a class="nav-link" href="{{ route('units.index') }}">
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true"
+                aria-controls="collapseOne">
                 <i class="fa-solid fa-box-open"></i>
-                <span>{{ __('Units') }}</span>
+                <span>{{ __('Units and Products') }}</span>
             </a>
-        </li>
-        <li class="nav-item {{ Nav::isRoute('products.*') }}">
-            <a class="nav-link" href="{{ route('products.index') }}">
-                <i class="fa fa-shopping-cart"></i>
-                <span>{{ __('Product') }}</span>
-            </a>
+        
+            <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    @can('list product')
+                        <a class="collapse-item" href="{{route('units.index')}}">{{ __('Units') }}</a>
+                    @else
+                        <a class="collapse-item" href="#" disabled>{{ __('Units') }}</a>
+                    @endcan
+                    @can('list product')
+                        <a class="collapse-item" href="{{route('products.index')}}">{{ __('Products') }}</a>
+                    @else
+                        <a class="collapse-item" href="#" disabled>{{ __('Products') }}</a>
+                    @endcan
+                </div>
+            </div>
         </li>
         <li class="nav-item {{ Nav::isRoute('suppliers.*') }}">
             <a class="nav-link" href="{{ route('suppliers.index') }}">
@@ -107,21 +135,43 @@
         </li>
         <li class="nav-item {{ Nav::isRoute('payments.*') }}">
             <a class="nav-link" href="{{ route('payments.index') }}">
-                <i class="fa fa-credit-card-alt"></i>
+                <i class="fa-solid fa-credit-card-alt"></i>
                 <span>{{ __('Payment') }}</span>
             </a>
         </li>
         <li class="nav-item {{ Nav::isRoute('warehouses.*') }}">
             <a class="nav-link" href="{{ route('warehouses.index') }}">
-                <i class="fas fa-home"></i>
+                <i class="fa-solid fa-warehouse"></i>
                 <span>{{ __('Warehouse') }}</span>
             </a>
         </li>
         <li class="nav-item {{ Nav::isRoute('invoice.*') }}">
             <a class="nav-link" href="{{ route('invoice.index') }}">
-                <i class="fa fa-file-invoice"></i>
+                <i class="fa-solid fa-file-invoice"></i>
                 <span>{{ __('Invoice') }}</span>
             </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseThree" aria-expanded="true"
+                aria-controls="collapseThree">
+                <i class="fa-solid fa-wallet"></i>
+                <span>{{ __('Finance') }}</span>
+            </a>
+        
+            <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    @can('list product')
+                        <a class="collapse-item" href="{{route('incomes.index')}}">{{ __('Income') }}</a>
+                    @else
+                        <a class="collapse-item" href="#" disabled>{{ __('Income') }}</a>
+                    @endcan
+                    @can('list product')
+                        <a class="collapse-item" href="{{route('expenses.index')}}">{{ __('Expense') }}</a>
+                    @else
+                        <a class="collapse-item" href="#" disabled>{{ __('Expense') }}</a>
+                    @endcan
+                </div>
+            </div>
         </li>
 
         <!-- Divider -->
@@ -177,137 +227,12 @@
             <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
 
                 <!-- Sidebar Toggle (Topbar) -->
-                <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                <button id="sidebarToggle" class="btn btn-link d-md-none rounded-circle mr-3">
                     <i class="fa fa-bars"></i>
                 </button>
 
                 <!-- Topbar Navbar -->
                 <ul class="navbar-nav ml-auto">
-
-                    <!-- Nav Item - Search Dropdown (Visible Only XS) -->
-                    <li class="nav-item dropdown no-arrow d-sm-none">
-                        <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <i class="fas fa-search fa-fw"></i>
-                        </a>
-                        <!-- Dropdown - Messages -->
-                        <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in" aria-labelledby="searchDropdown">
-                            <form class="form-inline mr-auto w-100 navbar-search">
-                                <div class="input-group">
-                                    <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2">
-                                    <div class="input-group-append">
-                                        <button class="btn btn-primary" type="button">
-                                            <i class="fas fa-search fa-sm"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </li>
-
-                    <!-- Nav Item - Alerts -->
-                    <li class="nav-item dropdown no-arrow mx-1">
-                        {{-- <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <i class="fas fa-bell fa-fw"></i>
-                            <!-- Counter - Alerts -->
-                            <span class="badge badge-danger badge-counter">3+</span>
-                        </a> --}}
-                        <!-- Dropdown - Alerts -->
-                        <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="alertsDropdown">
-                            <h6 class="dropdown-header">
-                                Alerts Center
-                            </h6>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="mr-3">
-                                    <div class="icon-circle bg-primary">
-                                        <i class="fas fa-file-alt text-white"></i>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="small text-gray-500">December 12, 2019</div>
-                                    <span class="font-weight-bold">A new monthly report is ready to download!</span>
-                                </div>
-                            </a>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="mr-3">
-                                    <div class="icon-circle bg-success">
-                                        <i class="fas fa-donate text-white"></i>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="small text-gray-500">December 7, 2019</div>
-                                    $290.29 has been deposited into your account!
-                                </div>
-                            </a>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="mr-3">
-                                    <div class="icon-circle bg-warning">
-                                        <i class="fas fa-exclamation-triangle text-white"></i>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="small text-gray-500">December 2, 2019</div>
-                                    Spending Alert: We've noticed unusually high spending for your account.
-                                </div>
-                            </a>
-                            <a class="dropdown-item text-center small text-gray-500" href="#">Show All Alerts</a>
-                        </div>
-                    </li>
-
-                    <!-- Nav Item - Messages -->
-                    <li class="nav-item dropdown no-arrow mx-1">
-                        {{-- <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <i class="fas fa-envelope fa-fw"></i>
-                            <!-- Counter - Messages -->
-                            <span class="badge badge-danger badge-counter">7</span>
-                        </a> --}}
-                        <!-- Dropdown - Messages -->
-                        <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="messagesDropdown">
-                            <h6 class="dropdown-header">
-                                Message Center
-                            </h6>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="dropdown-list-image mr-3">
-                                    <img class="rounded-circle" src="https://source.unsplash.com/fn_BT9fwg_E/60x60" alt="">
-                                    <div class="status-indicator bg-success"></div>
-                                </div>
-                                <div class="font-weight-bold">
-                                    <div class="text-truncate">Hi there! I am wondering if you can help me with a problem I've been having.</div>
-                                    <div class="small text-gray-500">Emily Fowler · 58m</div>
-                                </div>
-                            </a>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="dropdown-list-image mr-3">
-                                    <img class="rounded-circle" src="https://source.unsplash.com/AU4VPcFN4LE/60x60" alt="">
-                                    <div class="status-indicator"></div>
-                                </div>
-                                <div>
-                                    <div class="text-truncate">I have the photos that you ordered last month, how would you like them sent to you?</div>
-                                    <div class="small text-gray-500">Jae Chun · 1d</div>
-                                </div>
-                            </a>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="dropdown-list-image mr-3">
-                                    <img class="rounded-circle" src="https://source.unsplash.com/CS2uCrpNzJY/60x60" alt="">
-                                    <div class="status-indicator bg-warning"></div>
-                                </div>
-                                <div>
-                                    <div class="text-truncate">Last month's report looks great, I am very happy with the progress so far, keep up the good work!</div>
-                                    <div class="small text-gray-500">Morgan Alvarez · 2d</div>
-                                </div>
-                            </a>
-                            <a class="dropdown-item d-flex align-items-center" href="#">
-                                <div class="dropdown-list-image mr-3">
-                                    <img class="rounded-circle" src="https://source.unsplash.com/Mv9hjnEUHR4/60x60" alt="">
-                                    <div class="status-indicator bg-success"></div>
-                                </div>
-                                <div>
-                                    <div class="text-truncate">Am I a good boy? The reason I ask is because someone told me that people say this to all dogs, even if they aren't good...</div>
-                                    <div class="small text-gray-500">Chicken the Dog · 2w</div>
-                                </div>
-                            </a>
-                            <a class="dropdown-item text-center small text-gray-500" href="#">Read More Messages</a>
-                        </div>
-                    </li>
 
                     <div class="topbar-divider d-none d-sm-block"></div>
 
@@ -323,14 +248,6 @@
                                 <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                 {{ __('Profile') }}
                             </a>
-                            {{-- <a class="dropdown-item" href="javascript:void(0)">
-                                <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
-                                {{ __('Settings') }}
-                            </a>
-                            <a class="dropdown-item" href="javascript:void(0)">
-                                <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
-                                {{ __('Activity Log') }}
-                            </a> --}}
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
                                 <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
@@ -396,11 +313,14 @@
         </div>
     </div>
 </div>
-
 <!-- Scripts -->
-
+@stack('scripts')
 <script>
     $(document).ready(function () {
+        $("#sidebarToggle").on("click", function () {
+            $("body").toggleClass("sidebar-toggled");
+            $(".sidebar").toggleClass("toggled");
+        });
         // Fungsi untuk memformat angka ke format Rupiah
         function formatRupiah(total) {
             return new Intl.NumberFormat('id-ID', {

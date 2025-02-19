@@ -10,6 +10,7 @@
             </div>
 
             <div class="card-body">
+                <a href="{{ route('products.index') }}" class="btn btn-secondary mb-2">Back</a>
                 <div class="table-responsive">
                     @if ($logs->isEmpty())
                         <p>No logs found for products.</p>
@@ -54,7 +55,7 @@
                                             @endphp
                                             <pre>{{ json_encode($newData, JSON_PRETTY_PRINT) }}</pre>
                                         </td>
-                                        <td>{{ $log->created_at->format('d-m-Y ') }}</td> <!-- Format Timestamp -->
+                                        <td>{{ $log->created_at->format('d-m-Y, H:i:s') }}</td> <!-- Format Timestamp -->
                                     </tr>
                                 @endforeach
                             </tbody>

@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Log\PaymentHistory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use DB;
+use Request;
 
 class Payment extends Model
 {
@@ -46,27 +48,27 @@ class Payment extends Model
             ->select(
                 'payments.id',
                 'payments.supplier_id',
-                'suppliers.name as supplier_name',
-                'suppliers.address as supplier_address',
-                'suppliers.contact as supplier_contact',
-                'suppliers.pic_name as supplier_pic_name',
                 'payments.total_price',
                 'payments.is_received',
                 'payments.status',
                 'payments.created_at', // Pastikan ini ada
+                'suppliers.name as supplier_name',
+                'suppliers.address as supplier_address',
+                'suppliers.contact as supplier_contact',
+                'suppliers.pic_name as supplier_pic_name',
                 DB::raw("COALESCE(SUM(payment_items.quantity), 0) as total_quantity") // Perbaiki SUM
             )
             ->groupBy(
                 'payments.id',
                 'payments.supplier_id',
+                'payments.total_price',
+                'payments.is_received',
+                'payments.status',
+                'payments.created_at',
                 'suppliers.name',
                 'suppliers.address',
                 'suppliers.contact',
                 'suppliers.pic_name',
-                'payments.total_price',
-                'payments.is_received',
-                'payments.status',
-                'payments.created_at'
             )
             ->whereNull('payments.deleted_at')
             ->whereNull('payment_items.deleted_at')
@@ -87,14 +89,14 @@ class Payment extends Model
             ->select(
                 'payments.id',
                 'payments.supplier_id',
-                'suppliers.name as supplier_name',
-                'suppliers.address as supplier_address',
-                'suppliers.contact as supplier_contact',
-                'suppliers.pic_name as supplier_pic_name',
                 'payments.total_price',
                 'payments.is_received',
                 'payments.status',
                 'payments.created_at',
+                'suppliers.name as supplier_name',
+                'suppliers.address as supplier_address',
+                'suppliers.contact as supplier_contact',
+                'suppliers.pic_name as supplier_pic_name',
                 DB::raw("SUM(payment_items.quantity) as total_quantity"),
             )
             ->whereNull('payments.deleted_at')
@@ -103,19 +105,19 @@ class Payment extends Model
             ->whereNull('suppliers.deleted_at')
             ->where(function ($query) use ($search) {
                 $search = strtolower($search); // Ubah ke lowercase sebelum digunakan
-                $query->whereRaw('LOWER(payments.supplier_name) LIKE ?', ["%{$search}%"])
-                    ->orWhereRaw('LOWER(payments.status) LIKE ?', ["%{$search}%"]);
+                $query->where('payments.supplier_name', 'ILIKE', "%{$search}%")
+                    ->orWhere('payments.status', 'ILIKE', "%{$search}%");
             })
             ->groupBy(
                 'payments.id',
+                'payments.total_price',
+                'payments.is_received',
+                'payments.status',
+                'payments.created_at',
                 'suppliers.name',
                 'suppliers.address',
                 'suppliers.contact',
                 'suppliers.pic_name',
-                'payments.total_price',
-                'payments.is_received',
-                'payments.status',
-                'payments.created_at'
             )
             ->orderBy('payments.created_at', 'desc')
             ->paginate(25);
@@ -127,6 +129,18 @@ class Payment extends Model
         return DB::transaction(function () use ($data) {
             // Ambil nama supplier dari database
             $supplier = DB::table('suppliers')->where('id', $data['supplier_id'])->first();
+
+            // Jika supplier tidak ditemukan, kembalikan false
+            if (!$supplier) {
+                return false;
+            }
+            $items = array_filter($data['items'], function($item) {
+                return isset($item['product_id'], $item['quantity'], $item['price']) && $item['quantity'] > 0;
+            });
+            // Jika tidak ada item yang valid, kembalikan false
+            if (empty($items)) {
+                return false;
+            }
             // Hitung total harga pembayaran berdasarkan jumlah item dan harga tidap product
             $total_price = collect($data['items'])->sum(fn ($item) => $item['quantity'] * $item['price']);
             
@@ -138,6 +152,7 @@ class Payment extends Model
                 'supplier_contact' => $supplier->contact,
                 'supplier_pic_name' => $supplier->pic_name,
                 'total_price' => $total_price,
+                'created_by' => auth()->user()->name,
                 'created_at' => now(),
             ]);
     
@@ -148,7 +163,7 @@ class Payment extends Model
     
             // Buat array untuk menyimpan banyak data sekaligus
             $paymentItems = [];
-            foreach($data['items'] as $item) {
+            foreach($items as $item) {
                 // Tambahkan data item ke dalam array
                 $paymentItems[] = [
                     'payment_id' => $paymentId,
@@ -165,7 +180,8 @@ class Payment extends Model
     
             // Insert data payment_items
             DB::table('payment_items')->insert($paymentItems);
-            return $paymentId;
+            // Ambil payment yang baru ditambahkan
+            return DB::table('payments')->where('id', $paymentId)->first();
         });
     }
 
@@ -211,6 +227,181 @@ class Payment extends Model
                 return $item->quantity * $item->price;
             });
         }
+
+        return $payment;
+    }
+
+    // Update status payment
+    public static function updateStatus($id, $data)
+    {
+        // Ambil data payment berdasarkan id
+        $payment = self::findOrFail($id);
+
+        // Simpan data lama sebelum update
+        $oldStatus = $payment->status;
+        $oldReceived = $payment->is_received;
+
+        // Update status payment
+        $payment->status = $data['status'];
+        $payment->is_received = $data['is_received'] ?? $payment->is_received;
+        $payment->save();
+
+        // Simpan log untuk status perubahan
+        PaymentHistory::create([
+            'user_id' => auth()->user()->id,
+            'payment_id' => $payment->id,
+            'action' => 'update',
+            'old_data' => json_encode([
+                'id' => $payment->id,
+                'status' => $oldStatus,
+                'is_received' => $oldReceived,
+            ]),
+            'new_data' => json_encode([
+                'id' => $payment->id,
+                'status' => $payment->status,
+                'is_received' => $payment->is_received,
+            ]),
+        ]);
+
+        // Jika status payment adalah 'lunas', update quantity produk di warehouse
+        if ($payment->status == 'lunas') {
+            foreach ($payment->items as $item) {
+                // Ambil produk yang terkait dengan payment item
+                $product = $item->product;
+
+                if ($product) {
+                    // Tambahkan quantity produk berdasarkan quantity yang ada di payment item
+                    $newQuantity = $product->quantity + $item->quantity;
+                    $product->quantity = $newQuantity;
+                    $product->save();  // Simpan perubahan quantity ke produk
+
+                    // Simpan log perubahan quantity dan product yang masuk
+                    PaymentHistory::create([
+                        'user_id' => auth()->user()->id,
+                        'payment_id' => $payment->id,
+                        'action' => 'update',
+                        'old_data' => json_encode([
+                            'id' => $payment->id,
+                            'product_id' => $product->id,
+                            'quantity' => $product->quantity - $item->quantity,
+                        ]),
+                        'new_data' => json_encode([
+                            'id' => $payment->id,
+                            'product_id' => $product->id,
+                            'quantity' => $product->quantity,
+                        ]),
+                    ]);
+                }
+            }
+        }
+
+        return $payment; // Return payment yang baru ditambahkan
+    }
+
+    // Process payment
+    public static function processPaymentFunction($paymentId, $paymentStatus, $isReceived, $request)
+    {
+        // Ambil data payment berdasarkan id
+        $payment = self::with('items')->findOrFail($paymentId);
+        if (!$payment) {
+            throw new \Exception('Payment not found');
+        }
+
+        // Simpan data lama sebelum update
+        $oldStatus = $payment->status;
+        $oldReceived = $payment->is_received;
+
+        // Cek jika status pembayaran adalah 'lunas' atau 'on progress'
+        if ($paymentStatus == 'lunas' || $paymentStatus == 'on progress') {
+            if ($payment->is_received) {
+                // Barang sudah diterima, hanya update status
+                $payment->status = $paymentStatus;
+            } else {
+                // Jika barang belum diterima, maka update status saja
+                if ($request->input('is_received', false)) {
+                    // Jika is_received bernilai true, proses quantity dan update status
+                    $payment->status = $paymentStatus;
+                    $payment->is_received = true;
+
+                    // Loop untuk setiap item dan update quantity di warehouse
+                    foreach ($payment->items as $item) {
+                        // Cek apakah barang sudah ada di warehouse
+                        // $warehouse = Warehouse::where('product_id', $item->product_id)
+                        //     ->where('supplier_id', $payment->supplier_id)
+                        //     ->where('unit_id', $item->unit_id)
+                        //     ->where('price', $item->price)
+                        //     ->where('payment_id', $payment->id)
+                        //     ->whereNull('deleted_at')
+                        //     ->first();
+                        $warehouse = Warehouse::create([
+                            'payment_id' => $payment->id,
+                            'supplier_id' => $payment->supplier_id,
+                            'product_id' => $item->product_id,
+                            'unit_id' => $item->unit_id,
+                            'price' => $item->price,
+                            'quantity' => $item->quantity,
+                        ]);
+
+                        // if ($warehouse) {
+                        //     $oldQuantity = $warehouse->quantity;
+                        //     // Jika barang sudah ada di warehouse, tambah quantity-nya
+                        //     $warehouse->quantity += $item->quantity;
+                        //     $warehouse->save();
+                        // } else {
+                        //     // Jika barang belum ada di warehouse, buat baru
+                        //     $oldQuantity = 0;
+                        //     Warehouse::create([
+                        //         'payment_id' => $payment->id,
+                        //         'supplier_id' => $payment->supplier_id,
+                        //         'product_id' => $item->product_id,
+                        //         'unit_id' => $item->unit_id,
+                        //         'price' => $item->price,
+                        //         'quantity' => $item->quantity,
+                        //     ]);
+                        // }
+
+                        // Update selling_price jika product yang baru masuk sudah ada di warehouse sebelumnya
+                        $existingWarehouse = Warehouse::where('product_id', $item->product_id)
+                                            ->whereNotNull('selling_price')
+                                            ->orderBy('created_at', 'desc')
+                                            ->first();
+
+                        if ($existingWarehouse) {
+                            // update harga jual jika product yang baru masuk sudah ada di warehouse sebelumnya
+                            $warehouse->selling_price = $existingWarehouse->selling_price;
+                            $warehouse->save();
+                        }
+                    }
+                } else {
+                    // Jika is_received bernilai false, jangan lakukan apapun pada warehouse
+                    $payment->status = $paymentStatus;
+                }
+            }
+        } else {
+            // Jika status payment bukan 'lunas' atau 'on progress', update status
+            $payment->status = $paymentStatus;
+            $payment->is_received = $isReceived;
+        }
+
+        // Simpan perubahan status
+        $payment->save();
+
+        // Simpan log perubahan status
+        PaymentHistory::create([
+            'user_id' => auth()->user()->id,
+            'payment_id' => $payment->id,
+            'action' => 'update',
+            'old_data' => json_encode([
+                'id' => $payment->id,
+                'status' => $oldStatus,
+                'is_received' => $oldReceived,
+            ]),
+            'new_data' => json_encode([
+                'id' => $payment->id,
+                'status' => $payment->status,
+                'is_received' => $payment->is_received,
+            ]),
+        ]);
 
         return $payment;
     }

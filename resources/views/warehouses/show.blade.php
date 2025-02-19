@@ -45,9 +45,9 @@
                 </tr>
             </thead>
             <tbody>
-                @if (count($warehouses) == 0)
+                @if ($warehouses->count() == 0)
                     <tr>
-                        <td colspan="5" class="text-center">No Data Available</td>
+                        <td colspan="7" class="text-center">No Data Available</td>
                     </tr>                
                 @else
                     @foreach ($warehouses as $key => $warehouse)

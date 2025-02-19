@@ -15,7 +15,8 @@
         <div class="card-body">
             {{-- Export invoice to PDF Button --}}
             <div class="form-group d-flex justify-content-end">
-                <a href="{{ route('invoice.download', $invoice->id) }}" class="btn btn-danger">Export to PDF</a>
+                <a href="{{ route('invoice.download', $invoice->id) }}" class="btn btn-danger">
+                    <i class="fa-solid fa-download m-1"></i>Download</a>
             </div>  
 
             {{-- Invoice Information --}}
@@ -32,11 +33,11 @@
                 </tr>
                 <tr>
                     <th>Tanggal Invoice</th>
-                    <td>{{ \Carbon\Carbon::parse($invoice->invoice_date)->isoFormat('DD-MM-YYYY') }}</td>
+                    <td>{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d-m-Y, H:i:s') }}</td>
                 </tr>
                 <tr>
                     <th>Tanggal Lunas</th>
-                    <td>{{ \Carbon\Carbon::parse($invoice->due_date)->isoFormat('DD-MM-YYYY') }}</td>
+                    <td>{{ \Carbon\Carbon::parse($invoice->due_date)->format('d-m-Y, H:i:s') }}</td>
                 </tr>
             </table>
 
@@ -54,7 +55,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($invoice->items as $item)
+                    @foreach($items as $item)
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td>{{ $item->product_name }}</td>
@@ -66,8 +67,8 @@
                     @endforeach
                     <tr>
                         <td colspan="4" class="text-center"><b>Total</b></td>
-                        <td>{{ $invoice->total_quantity }}</td>
-                        <td class="prices" data-price="{{ $invoice->total_price }}">{{ $invoice->total_price }}</td>
+                        <td>{{ $items->sum('quantity') }}</td>
+                        <td class="prices" data-price="{{ $items->sum('total_price') }}">{{ $items->sum('total_price') }}</td>
                     </tr>
                 </tbody>
             </table>

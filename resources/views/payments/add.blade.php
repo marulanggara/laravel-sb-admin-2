@@ -111,7 +111,7 @@
                                         <input type="hidden" name="items[${product.product_id}][unit_name]" value="${product.unit_name}">
                                         <input type="number" name="items[${product.product_id}][quantity]" 
                                                class="form-control quantity-input mt-1 mb-2" 
-                                               placeholder="Quantity" min="1" disabled>
+                                               placeholder="Quantity" min="1" step="1"  oninput="this.value = this.value.replace(/[^0-9]/g, '')" disabled>
                                         <input type="hidden" name="items[${product.product_id}][price]" value="${product.price || 0}">
                                     </div>
                                 `);
@@ -144,6 +144,20 @@
             } else {
                 $('#item-list').hide();
             }
+        });
+
+        $('#addPaymentForm').submit(function (e) {
+            // Hapus input yang tidak memiliki product_id atau quantity
+            $('.product-checkbox').each(function () {
+                var isChecked = $(this).is(':checked');
+                var parentDiv = $(this).closest('.form-check');
+
+                if (!isChecked) {
+                    parentDiv.find('input').each(function () {
+                        $(this).prop('disabled', true); // Matikan semua input terkait produk yang tidak dipilih
+                    });
+                }
+            });
         });
 
         // Fungsi untuk format angka menjadi rupiah

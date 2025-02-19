@@ -11,12 +11,21 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
-                    <button class="btn btn-primary" data-toggle="modal" data-target="#createUnitModal">+ Create Unit</button>
+                    @can('create product')
+                        <button class="btn btn-primary" data-toggle="modal" data-target="#createUnitModal">+ Create Unit</button>
+                    @else
+                        <button class="btn btn-primary disabled" >+ Create Unit</button>
+                    @endcan
+                    @can('list product')
+                        <a href="{{ route('units.logs') }}" class="btn btn-primary">Log History</a>
+                    @else
+                        <a href="#" class="btn btn-primary disabled">Log History</a>
+                    @endcan
                 </div>
                 <div class="col-md-6">
                     <form action="{{ route('units.index') }}" method="get">
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for..."
+                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for Unit Name"
                                 aria-label="Search" aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button">
@@ -63,19 +72,27 @@
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $unit->name }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-warning btn-edit"
+                                        @can('update product')
+                                        <button class="btn btn-sm transparent btn-edit"
                                             data-id="{{ $unit->id }}"
                                             data-name="{{ $unit->name }}"
                                             data-toggle="modal"
                                             data-target="#updateUnitModal">
                                             <i class="fa-solid fa-eye fa-lg"></i>
                                         </button>
+                                        @else
+                                            <a href="#" class="btn btn-sm transparent disabled"><i class="fa-solid fa-eye fa-lg"></i></a>
+                                        @endcan
+                                        @can('delete product')
                                         <button class="btn btn-sm btn-danger btn-delete" 
                                                 data-id="{{ $unit->id }}"
                                                 data-toggle="modal"
                                                 data-target="#deleteUnitModal">
                                             <i class="fa-solid fa-trash-can fa-lg"></i>
                                         </button>
+                                        @else
+                                            <a href="#" class="btn btn-sm transparent disabled"><i class="fa-solid fa-trash-can fa-lg"></i></a>
+                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach
@@ -83,7 +100,7 @@
                     </tbody>
                 </table>
                 <div class="d-flex justify-content-center">
-                    {{ $units->links() }}
+                    {{ $units->appends(['per_page' => request()->per_page])->links() }}
                 </div>
             </div>
         </div>

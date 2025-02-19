@@ -61,7 +61,12 @@
                                         value="{{ 'Rp '.number_format((float)old('products.' . $product->id . '.price',  $productPrices[$product->id] ?? 0), 0, ',', '.') }}"
                                         oninput="formatRupiah(this)"
                                         @if (!in_array($product->id, $selectedProducts)) disabled @endif>
-                                </div>
+<!-- Input tersembunyi untuk menyimpan harga asli -->
+<input type="hidden" 
+    id="hidden_price_{{ $product->id }}" 
+    name="products[{{ $product->id }}][price]" 
+    value="{{ old('products.' . $product->id . '.price',  $productPrices[$product->id] ?? 0) }}" />
+                                    </div>
                                 @endforeach
                             @endif
                         </div>

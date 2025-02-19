@@ -30,7 +30,7 @@
                     <form action="{{ route('products.index') }}" method="get">
                         @can('list product')
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2">
+                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search by Item Name or Code" aria-label="Search" aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button">
                                     <i class="fas fa-search fa-sm"></i>
@@ -39,7 +39,7 @@
                         </div>
                         @else
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" name="search" placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2" disabled>
+                            <input type="text" class="form-control bg-light border-0 small" name="search" placeholder="Search by Item Name or Code" aria-label="Search" aria-describedby="basic-addon2" disabled>
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button" disabled>
                                     <i class="fas fa-search fa-sm"></i>
@@ -141,7 +141,7 @@
                     </tbody>
                 </table>
                 <div class="d-flex justify-content-center mt-3">
-                    {{ $products->links() }}
+                    {{ $products->appends(['per_page' => request()->per_page])->links() }}
                 </div>
             </div>
         </div>

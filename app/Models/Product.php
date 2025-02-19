@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use DB;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Log\ProductHistory;
 
 class Product extends Model
 {
@@ -86,17 +87,42 @@ class Product extends Model
     // Menambah data product dengan query builder
     public static function addProduct($data)
     {
-        return DB::table('products')->insert([
+        // Simpan data produk menggunakan Eloquent
+        $newProduct = Product::create([
             'name' => $data['name'],
             'code' => $data['code'],
             'unit_id' => $data['unit_id'],
-            'created_at' => date('Y-m-d H:i:s'),
+            'created_at' => now(),
+            'updated_at' => null,
         ]);
+
+        // Simpan log product
+        $logData = [
+            'user_id' => auth()->user()->id,
+            'product_id' => $newProduct->id,
+            'action' => 'create',
+            'old_data' => json_encode([]),
+            'new_data' => json_encode($newProduct),
+            'created_at' => now(),
+            'updated_at' => null,
+        ];
+        DB::table('log_histories.product_log_histories')->insert($logData);
+
+        return $newProduct;
     }
 
     // Mengupdate data product dengan query builder
     public static function updateProduct($data, $id)
     {
+        // Cari product berdasarkan id
+        $product = DB::table('products')->where('id', $id)->first();
+
+        if (!$product) {
+            return false;
+        }
+
+        // Simpan perubahan data sebelum update (old_data)
+        $old_data = (array) $product; // Mengambil data sebelum update
 
         // Update produk dengan query builder
         $updated = DB::table('products')
@@ -104,10 +130,27 @@ class Product extends Model
             ->update([
                 'name' => $data['name'],
                 'unit_id' => $data['unit_id'],
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => now(),
             ]);
 
-        return $updated > 0;
+        if($updated > 0){
+            // Simpan data terbaru dari product setelah update (new_data)
+            $new_data = DB::table('products')->where('id', $id)->first();
+            $new_data = (array) $new_data; // Mengambil data terbaru
+
+            // Simpan perubahan data ke log
+            ProductHistory::create([
+                'user_id' => auth()->user()->id,
+                'product_id' => $id,
+                'action' => 'update',
+                'old_data' => json_encode($old_data),
+                'new_data' => json_encode($new_data),
+                'created_at' => now(),
+            ]);
+
+            return true;
+        }
+        return false;
     }
 
     // Menghapus data product dengan query builder
@@ -118,10 +161,19 @@ class Product extends Model
 
         // Jika ada product
         if ($product) {
+            /// Simpan log
+            $logData = [
+                'user_id' => auth()->user()->id,
+                'product_id' => $id,
+                'action' => 'delete',
+                'old_data' => json_encode($product),
+                'new_data' => json_encode([]),
+            ];
+            DB::table('log_histories.product_log_histories')->insert($logData);
+
             // Hapus product
-            // DB::table('products')->where('id', $id)->delete();
             DB::table('products')->where('id', $id)->update([
-                'deleted_at' => date('Y-m-d H:i:s'),
+                'deleted_at' => now(),
             ]);
 
             return true;
@@ -133,8 +185,41 @@ class Product extends Model
     public static function searchProduct($search)
     {
         // Search product by name and code no case sensitive
-        return Product::whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])
-                    ->orWhereRaw('LOWER(code) LIKE ?', ['%'.strtolower($search).'%'])
+        return Product::where('name', 'ILIKE', '%'.$search.'%')
+                    ->orWhere('code', 'ILIKE', '%'.$search.'%')
                     ->paginate(25);
+    }
+
+    // Search Product from warehouse
+    public static function searchProductWarehouse($search)
+    {
+        $products = self::whereRaw('LOWER(products.name) LIKE ?', ['%' . strtolower($search) . '%'])
+            ->whereHas('warehouses', function ($query) {
+                $query->where('quantity', '>', 0);
+            })
+            ->limit(10)
+            ->get();
+
+        return $products->map(function ($product) {
+            // Mengambil warehouse dengan stock tersedia dengan FIFO
+            $warehouse = $product->warehouses()
+                ->where('quantity', '>', 0)
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            if (!$warehouse) {
+                return null;
+            }
+
+            return [
+                'id' => $product->id,
+                'text' => $product->name,
+                'available_stock' => $warehouse->quantity,
+                'warehouse_id' => $warehouse->id,
+                'product_code' => $warehouse->product->code,
+                'unit_name' => $warehouse->unit->name,
+                'selling_price' => $warehouse->selling_price
+            ];
+        })->filter()->sortBy('text')->values();
     }
 }

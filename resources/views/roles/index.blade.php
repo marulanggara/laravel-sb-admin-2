@@ -8,7 +8,7 @@
     <!-- Project Card Example -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Roles List</h6>
+            <h4 class="m-0 font-weight-bold text-primary">Roles List</h4>
         </div>
         {{-- Show data/pages button with dropdown in left side, Add New Role Button in right side and search button in right side --}}
         <div class="card-body">
@@ -23,16 +23,6 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <form action="#" method="GET">
-                        <div class="input-group">
-                            <input type="text" class="form-control" placeholder="Search..." name="search">
-                            <div class="input-group-append">
-                                <button class="btn btn-secondary" type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
                 </div>
             </div>
         </div>
@@ -44,7 +34,6 @@
                         <tr>
                             <th>No.</th>
                             <th>Role Name</th>
-                            {{-- <th>Permission</th> --}}
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -59,13 +48,6 @@
                                 <tr>
                                     <td>{{ $loop->iteration }}</td>
                                     <td>{{ $role->name }}</td>
-                                    {{-- <td>
-                                        <ul>
-                                            @foreach ($role->permissions as $permission)
-                                            <li>{{ $permission->name }}</li>
-                                            @endforeach
-                                        </ul>
-                                    </td> --}}
                                     <td>
                                         @can('update role')
                                             <a href="{{ route('roles.edit', $role->id) }}" class="btn transparent"><i class="fa-solid fa-eye fa-lg"></i></a>

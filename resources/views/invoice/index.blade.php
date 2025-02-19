@@ -8,21 +8,30 @@
     <!-- Project Card Example -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Invoice List</h6>
+            <h4 class="m-0 font-weight-bold text-primary">Invoice List</h4>
         </div>
 
         {{-- Add New Products Button and search Button --}}
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
-                    <a href="{{ route('invoice.add') }}" class="btn btn-primary">+ Create Invoice</a>
-                    {{-- <a href="#" class="btn btn-primary">Log History</a> --}}
+                    @can('create invoice')
+                        <a href="{{ route('invoice.add') }}" class="btn btn-primary">+ Create Invoice</a>
+                    @else
+                        <a href="#" class="btn btn-primary disabled">+ Create Invoice</a>
+                    @endcan
+                    @can('list invoice')
+                        <a href="{{ route('invoice.logs') }}" class="btn btn-primary">Log History</a>
+                    @else
+                        <a href="#" class="btn btn-primary disabled">Log History</a>
+                    @endcan
                 </div>
                 <div class="col-md-6">
                     <form action="{{ route('invoice.index') }}" method="get">
+                        @can('list invoice')
                         <div class="input-group">
                             <input type="text" class="form-control bg-light border-0 small" name="search"
-                                 placeholder="Search for..." aria-label="Search"
+                                 placeholder="Search by No. Invoice" aria-label="Search"
                                 aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button">
@@ -30,6 +39,18 @@
                                 </button>
                             </div>
                         </div>
+                        @else
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-light border-0 small" name="search"
+                                 placeholder="Search by No. Invoice" aria-label="Search"
+                                aria-describedby="basic-addon2">
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" type="button" disabled>
+                                    <i class="fas fa-search fa-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @endcan
                     </form>
                 </div>
             </div>
@@ -77,10 +98,14 @@
                                     <td>{{ $invoice->invoice_no }}</td>
                                     <td>{{ $invoice->total_quantity }}</td>
                                     <td class="prices" data-price="{{ $invoice->total_price }}">{{ $invoice->total_price }}</td>
-                                    <td>{{ $invoice->invoice_date }}</td>
-                                    <td>{{ $invoice->created_by }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d-m-Y, H:i:s') }}</td>
+                                    <td>{{ ($invoice->created_by) }}</td>
                                     <td>
+                                        @can('update invoice')
                                         <a href="{{ route('invoice.show', $invoice->id) }}" class="btn btn-sm transparent"><i class="fa-solid fa-eye fa-lg"></i></a>
+                                        @else
+                                        <a href="#" class="btn btn-sm transparent disabled"><i class="fa-solid fa-eye fa-lg"></i></a>
+                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach
@@ -88,7 +113,7 @@
                     </tbody>
                 </table>
                 <div class="d-flex justify-content-center mt-3">
-                    {{ $invoices->links() }}
+                    {{ $invoices->appends(['per_page' => request()->per_page])->links() }}
                 </div>
             </div>
         </div>

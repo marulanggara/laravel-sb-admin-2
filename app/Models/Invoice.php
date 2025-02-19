@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\InvoiceItem;
@@ -81,19 +82,93 @@ class Invoice extends Model
             ->paginate($perPage);
     }
 
-    // Query add invoice
-    public static function addInvoice($data)
+    public static function addInvoice($request)
     {
-        return Invoice::create([
-            'invoice_no' => $data['invoice_no'],
-            'created_by' => $data['created_by'],
-            'invoice_date' => $data['invoice_date'],
-            'due_date' => $data['due_date'],
-            'total_price' => $data['total_price'],
-            'total_quantity' => $data['total_quantity'],
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        return DB::transaction(function () use ($request) {
+            // Membuat invoice baru
+            $invoice = Invoice::create([
+                'invoice_no' => $request->invoice_no,
+                'invoice_date' => now(),
+                'due_date' => Carbon::parse($request->due_date)->setTimeFromTimeString(now()->toTimeString()),
+                'created_by' => auth()->user()->name,
+                'total_price' => 0,
+                'created_at' => now(),
+                'updated_at' => null,
+            ]);
+
+            $totalPrice = 0;
+            
+            foreach ($request->items as $item) {
+                $remainingQuantity = $item['quantity']; // Total quantity yang diminta untuk invoice
+                // Ambil warehouse untuk produk yang bersangkutan, urutkan berdasarkan 'created_at' (FIFO)
+                $warehouses = Warehouse::where('product_id', $item['product_id'])
+                    ->orderBy('created_at', 'asc') // FIFO
+                    ->get();
+
+                foreach ($warehouses as $warehouse) {
+                    // Jika masih ada sisa quantity yang perlu dikurangi
+                    if ($remainingQuantity > 0) {
+                        $quantityToDecrement = min($remainingQuantity, $warehouse->quantity); // Ambil stok sesuai yang masih tersedia
+
+                        // Kurangi quantity di warehouse
+                        $warehouse->decrement('quantity', $quantityToDecrement);
+
+                        // Hitung harga total untuk item yang dipilih
+                        $totalItemPrice = $warehouse->selling_price * $quantityToDecrement;
+
+                        // Simpan item ke invoice_item
+                        InvoiceItem::create([
+                            'invoice_id' => $invoice->id,
+                            'warehouse_id' => $warehouse->id,
+                            'product_id' => $warehouse->product_id,
+                            'product_name' => $warehouse->product->name,
+                            'product_code' => $warehouse->product->code,
+                            'unit_name' => $warehouse->unit->name,
+                            'quantity' => $quantityToDecrement,
+                            'unit_price' => $warehouse->selling_price,
+                            'total_price' => $totalItemPrice,
+                            'created_at' => now(),
+                            'updated_at' => null,
+                        ]);
+
+                        // Tambah harga total invoice
+                        $totalPrice += $totalItemPrice;
+
+                        // Kurangi sisa quantity yang perlu ditangani
+                        $remainingQuantity -= $quantityToDecrement;
+                    }
+
+                    // Jika sudah cukup mengurangi quantity yang diperlukan, keluar dari loop
+                    if ($remainingQuantity <= 0) {
+                        break;
+                    }
+                }
+
+                // Jika masih ada sisa quantity yang diminta dan stok tidak cukup, bisa throw exception atau error
+                if ($remainingQuantity > 0) {
+                    throw new \Exception('Not enough stock available for product: ' . $item['product_id']);
+                }
+            }
+
+            // Update total price pada invoice
+            $invoice->update(['total_price' => $totalPrice]);
+
+            // Simpan log
+            $logData = [
+                'user_id' => auth()->user()->id,
+                'invoice_id' => $invoice->id,
+                'action' => 'create',
+                'old_data' => json_encode([]),
+                'new_data' => json_encode($invoice),
+                'created_at' => now(),
+            ];
+
+            DB::table('log_histories.invoice_log_histories')->insert($logData);
+
+            return $invoice;
+        });
     }
+
 
     // Search Invoice By Invoice No
     public static function searchInvoice($search)
@@ -112,7 +187,7 @@ class Invoice extends Model
             DB::raw('SUM(invoice_items.quantity) as total_quantity'),
         )
         ->where(function ($query) use ($search) {
-            $query->whereRaw('LOWER(invoices.invoice_no) LIKE ?', ['%'.strtolower($search).'%']);
+            $query->where('invoice_no', 'ILIKE', '%' . $search . '%');
         })
         ->whereNull('invoices.deleted_at')
         ->whereNull('invoice_items.deleted_at')

@@ -49,8 +49,9 @@
                         <tr>
                             <th>Product</th>
                             <th>Code</th>
+                            <th>Unit</th>
+                            <th>Price/Unit</th>
                             <th>Quantity</th>
-                            <th>Price</th>
                             <th>Total</th>
                             <th>Action</th>
                         </tr>
@@ -67,9 +68,9 @@
                                 <input type="hidden" class="warehouse-id" name="items[0][warehouse_id]">
                             </td>
                             <td><input type="text" class="form-control code" name="items[0][product_code]" placeholder="Code" readonly></td>
-                            <input type="hidden" class="form-control unit" name="items[0][unit_name]" readonly>
-                            <td><input type="number" class="form-control qty" name="items[0][quantity]" placeholder="Quantity" min="1"></td>
+                            <td><input type="text" class="form-control unit" name="items[0][unit_name]" placeholder="Unit" readonly></td>
                             <td><input type="text" class="form-control price" name="items[0][unit_price]" placeholder="Rp 0,00" readonly></td>
+                            <td><input type="number" class="form-control qty" name="items[0][quantity]" placeholder="Quantity" min="1" step="1"  oninput="this.value = this.value.replace(/[^0-9]/g, '')"></td>
                             <td>
                                 <input type="text" class="form-control total_display" placeholder="Rp 0,00" readonly>
                                 <input type="hidden" class="form-control total_price_hidden" name="items[0][total_price]" placeholder="Rp 0,00" value="0" readonly>
@@ -78,9 +79,19 @@
                         </tr>
                     </tbody>
                 </table>
+                <table class="table" id="totalTable">
+                    <tbody>
+                        <tr>
+                            <td colspan="4" class="text-center"><b>Total</b></td>
+                            <td ><input type="number" class="form-control" id="total_qty" name="total_qty" value="0" readonly></td>
+                            <td ><input type="text" class="form-control" id="total_price_display" name="total_price_display" placeholder="Rp 0,00" readonly></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
                 <div class="form-group">
-                <h4 class="mb-4">Total Price: <span id="grandTotal">0</span></h4>
-                <input type="text" class="form-control" id="total_price_display" name="total_price_display" placeholder="Rp 0,00" readonly>
+                {{-- <h4 class="mb-4">Total Price: <span id="grandTotal">0</span></h4> --}}
+                {{-- <input type="text" class="form-control" id="total_price_display" name="total_price_display" placeholder="Rp 0,00" readonly> --}}
                 <input type="hidden" class="form-control" id="total_price" name="total_price" value="0">
                 </div>
                 <button type="submit" class="btn btn-primary">Submit</button>
@@ -206,12 +217,18 @@
 
         function calculateGrandTotal() {
             let total = 0;
+            let totalQuantity = 0;
             $('.total_price_hidden').each(function () {
                 total += parseFloat($(this).val()) || 0;
+            });
+            // Menghitung total quantity
+            $('.qty').each(function () {
+                totalQuantity += parseInt($(this).val()) || 0;
             });
             $('#grandTotal').text(formatRupiah(total));
             $('#total_price_display').val(formatRupiah(total));
             $('#total_price').val(total);
+            $('#total_qty').val(totalQuantity);
         }
     });
 </script>

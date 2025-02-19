@@ -8,7 +8,7 @@
     <!-- Project Card Example -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Warehouse</h6>
+            <h4 class="m-0 font-weight-bold text-primary">Warehouse</h4>
         </div>
 
         {{-- Add New Warehouse Button and search Button --}}
@@ -25,7 +25,7 @@
                     <form action="{{ route('warehouses.index') }}" method="get">
                         @can('list warehouse')
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for..."
+                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for Item Name"
                                 aria-label="Search" aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button">
@@ -87,8 +87,9 @@
                                 <tr>
                                     <td>{{ $warehouses->firstItem() + $key }}</td>
                                     <td>{{ $warehouse->product_name }}</td>
-                                    <td>{{ $warehouse->total_quantity }}</td>
-                                    <td class="prices" data-price="{{ $warehouse->selling_price }}">{{ $warehouse->selling_price }}</td>
+                                    <td style="color: {{ $warehouse->total_quantity == 0 ? 'red' : 'inherit' }}">{{ $warehouse->total_quantity }}</td>
+                                    <td class="prices" data-price="{{ $warehouse->selling_price }}"
+                                        style="color: {{ $warehouse->selling_price == 0 ? 'red' : 'inherit' }}">{{ $warehouse->selling_price }}</td>
                                     <td>
                                         @can('update warehouse')
                                             <a href="{{ route('warehouses.show', $warehouse->product_id) }}" class="btn transparent btn-sm"><i class="fa-solid fa-eye fa-lg"></i></a> 
@@ -102,7 +103,7 @@
                     </tbody>
                 </table>
                 <div class="d-flex justify-content-center mt-3">
-                    {{ $warehouses->links() }}
+                    {{ $warehouses->appends(['per_page' => request()->per_page])->links() }}
                 </div>
             </div>
         </div>

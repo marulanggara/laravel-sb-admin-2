@@ -10,6 +10,7 @@
         </div>
 
         <div class="card-body">
+            <a href="{{ route('suppliers.index') }}" class="btn btn-secondary mb-2">Back</a>
             <div class="table-responsive">
                 @if($logs->isEmpty())
                     <p>No logs found.</p>
@@ -30,7 +31,7 @@
                             @foreach($logs as $log)
                                     <tr>
                                         <td>{{ $logs->firstItem() + $loop->index }}</td>
-                                        <td>{{ $log->supplier->name ?? 'Unknown' }}</td>
+                                        <td>{{ $log->supplier->name ?? '-' }}</td>
                                         <!-- Action dengan Warna -->
                                         <td>
                                             @if ($log->action === 'delete')
@@ -56,7 +57,7 @@
                                             @endphp
                                             <pre>{{ json_encode($newData, JSON_PRETTY_PRINT) }}</pre>
                                         </td>
-                                        <td>{{ $log->created_at->format('d-m-Y ') }}</td>
+                                        <td>{{ $log->created_at->format('d-m-Y, H:i:s') }}</td>
                                     </tr>
                             @endforeach
                         </tbody>

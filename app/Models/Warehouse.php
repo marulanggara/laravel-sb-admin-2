@@ -69,7 +69,6 @@ class Warehouse extends Model
             ->whereNull('products.deleted_at')
             ->whereNull('suppliers.deleted_at')
             ->whereNull('units.deleted_at')
-            ->where('warehouses.selling_price', '>=', 0)
             ->groupBy('warehouses.product_id', 'warehouses.selling_price')
             ->orderBy(DB::raw("MAX(products.name)"), 'asc')
             ->paginate($perPage);
@@ -120,6 +119,7 @@ class Warehouse extends Model
                     ->whereNull('units.deleted_at')
                     ->where('warehouses.product_id', $product_id,)
                     ->groupBy('warehouses.id', 'products.name', 'suppliers.name', 'units.name')
+                    ->havingRaw('SUM(warehouses.quantity) > 0')
                     ->orderBy('warehouses.created_at', 'asc')
                     ->paginate($perPage);
     }
@@ -134,4 +134,61 @@ class Warehouse extends Model
                         'updated_at' => now(),
                     ]);
     }
+
+    // public static function getAvailableStockByProductId($product_id)
+    // {
+    //     $warehouse = self::where('product_id', $product_id)
+    //         ->orderBy('created_at', 'asc') // FIFO: stok masuk pertama digunakan dulu
+    //         ->first();
+
+    //     if (!$warehouse) {
+    //         return null;
+    //     }
+
+    //     // Hitung total quantity
+    //     $total_quantity = DB::table('warehouses')
+    //         ->where('product_id', $product_id)
+    //         ->sum('quantity');
+
+    //     return [
+    //         'warehouse_id' => $warehouse->id,
+    //         'product_code' => $warehouse->product->code,
+    //         'unit_name' => $warehouse->unit->name,
+    //         'selling_price' => $warehouse->selling_price,
+    //         'available_stock' => $total_quantity
+    //     ];
+    // }
+    public static function getAvailableStockByProductId($product_id)
+    {
+        // Ambil warehouse yang mengandung produk dengan urutan FIFO
+        $warehouses = Warehouse::where('product_id', $product_id)
+            ->orderBy('created_at', 'asc') // FIFO: stok pertama kali masuk digunakan lebih dulu
+            ->get();
+
+        $totalQuantity = 0;
+        $availableStock = 0;
+
+        // Hitung total stok yang tersedia berdasarkan FIFO
+        foreach ($warehouses as $warehouse) {
+            // Menambahkan quantity warehouse ke availableStock
+            $availableStock += $warehouse->quantity;
+        }
+
+        // Jika tidak ditemukan stok untuk produk
+        if ($availableStock <= 0) {
+            return null;
+        }
+
+        // Ambil warehouse pertama yang memiliki stok yang tersedia
+        $firstWarehouse = $warehouses->first();
+
+        return [
+            'warehouse_id' => $firstWarehouse->id,
+            'product_code' => $firstWarehouse->product->code,
+            'unit_name' => $firstWarehouse->unit->name,
+            'selling_price' => $firstWarehouse->selling_price,
+            'available_stock' => $availableStock
+        ];
+    }
+
 }

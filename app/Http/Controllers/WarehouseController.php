@@ -41,7 +41,7 @@ class WarehouseController extends Controller
         $warehouses = Warehouse::getWarehouseById($id, $perPage);
         // Jika data warehouse tidak ditemukan
         if ($warehouses->isEmpty()) {
-            abort(404, 'Warehouse data not found');
+            return response()->view('warehouses.error404', [], 404);
         }
 
         return view('warehouses.show', compact('warehouses'));

@@ -69,7 +69,8 @@ class Supplier extends Model
             'address' => $data['address'],
             'contact' => $data['contact'],
             'pic_name' => $data['pic_name'],
-            'created_at' => date('Y-m-d H:i:s'),
+            'created_at' => now(),
+            'updated_at' => null,
         ]);
 
         // Cek ada produk yang dikirim sebelum dimasukkan ke supplier_product
@@ -93,7 +94,20 @@ class Supplier extends Model
                 DB::table('supplier_product')->insert($supplierProducts);
             }
         }
-        return $supplierId;
+        // Ambil data supplier yang baru ditambahkan
+        $supplier = DB::table('suppliers')->where('id', $supplierId)->first();
+
+        // Simpan log supplier
+        $logData = [
+            'user_id' => Auth::user()->id,
+            'supplier_id' => $supplierId,
+            'action' => 'create',
+            'old_data' => json_encode([]),
+            'new_data' => json_encode($supplier),
+            'created_at' => now(),
+            'updated_at' => null,
+        ];
+        DB::table('log_histories.supplier_log_histories')->insert($logData);
     }
 
     // Mengambil data supplier berdasarkan id
@@ -156,7 +170,7 @@ class Supplier extends Model
                 'address' => $data['address'],
                 'contact' => $data['contact'],
                 'pic_name' => $data['pic_name'],
-                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_at' => now(),
             ]);
 
         // Ambil data setelah update
@@ -188,11 +202,19 @@ class Supplier extends Model
 
             // Tambahkan product baru
             foreach ($data['products'] as $productId => $productData) {
-                if (!empty($productData['price'])) {
+                $price = preg_replace('/[^0-9]/', '', $productData['price']); // Hapus selain angka
+                // if (!empty($productData['price'])) {
+                //     DB::table('supplier_product')->insert([
+                //         'supplier_id' => $id,
+                //         'product_id' => $productId,
+                //         'price' => $productData['price'],
+                //     ]);
+                // }
+                if (!empty($price)) {
                     DB::table('supplier_product')->insert([
                         'supplier_id' => $id,
                         'product_id' => $productId,
-                        'price' => $productData['price'],
+                        'price' => $price,  // Simpan harga dalam angka
                     ]);
                 }
             }
@@ -231,9 +253,21 @@ class Supplier extends Model
         if (!$supplier) {
             return false;
         }
+        // Simpan log perubahan
+        $logData = [
+            'user_id' => Auth::user()->id,
+            'supplier_id' => $id,
+            'action' => 'delete',
+            'old_data' => json_encode($supplier),
+            'new_data' => json_encode([]),
+        ];
+        SupplierHistory::create($logData);
 
         // Hapus supplier
-        $supplier->delete();
+        DB::table('suppliers')->where('id', $id)->update([
+            'deleted_at' => now(),
+        ]);
+        
         return true;
     }
 
@@ -246,8 +280,8 @@ class Supplier extends Model
                     ->leftJoin('units', 'products.unit_id', '=', 'units.id')
                     ->select('suppliers.*', 'supplier_product.price as product_price', 'products.name as product_name', 'units.name as unit_name')
                     ->where(function ($query) use ($search) {
-                        $query->whereRaw('LOWER(suppliers.name) LIKE ?', ['%'.strtolower($search).'%'])
-                        ->orWhereRaw('LOWER(suppliers.pic_name) LIKE ?', ['%'.strtolower($search).'%']);
+                        $query->where('suppliers.name', 'ILIKE', '%'.$search.'%')
+                        ->orWhere('suppliers.pic_name', 'ILIKE', '%'.$search.'%');
                     })
                     ->whereNull('suppliers.deleted_at')
                     ->orderBy('suppliers.name', 'asc')

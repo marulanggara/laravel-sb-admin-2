@@ -6,8 +6,6 @@
     <title>{{ $invoice->invoice_no }}</title>
     <style>
         * {
-            -webkit-box-sizing: border-box;
-            -moz-box-sizing: border-box;
             box-sizing: border-box;
         }
 
@@ -15,118 +13,87 @@
             text-align: center;
         }
 
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6,
-        p,
-        span,
-        div {
-            font-family: DejaVu Sans;
-            font-size: 16px;
+        body {
+            font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            /* Font lebih besar */
+        }
+
+        h3 {
+            font-size: 20px;
+            /* Perbesar ukuran teks utama */
             font-weight: normal;
         }
 
         th,
         td {
-            font-family: DejaVu Sans;
-            font-size: 12px;
+            font-size: 16px;
+            /* Perbesar font dalam tabel */
         }
 
         .panel {
             margin-bottom: 20px;
-            background-color: #fff;
-            border: 1px solid transparent;
-            border-radius: 4px;
-            -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, .05);
-            box-shadow: 0 1px 1px rgba(0, 0, 0, .05);
-        }
-
-        .panel-default {
-            border-color: #ddd;
-        }
-
-        .panel-body {
-            padding: 15px;
+            font-size: 18px;
+            /* Perbesar font dalam panel */
         }
 
         table {
             width: 100%;
-            max-width: 100%;
-            margin-bottom: 0px;
-            border-spacing: 0;
             border-collapse: collapse;
-            background-color: transparent;
-
+            page-break-inside: auto;
         }
 
         thead {
             text-align: left;
             display: table-header-group;
             vertical-align: middle;
+            font-size: 16px;
         }
 
         th,
         td {
-            border: 1px solid #ddd;
-            padding: 6px;
+            border: 2px solid #000;
+            /* Border lebih tebal */
+            padding: 12px;
+            /* Padding lebih besar */
         }
 
-        .well {
-            min-height: 20px;
-            padding: 19px;
-            margin-bottom: 20px;
-            background-color: #f5f5f5;
-            border: 1px solid #e3e3e3;
-            border-radius: 4px;
-            -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .05);
-            box-shadow: inset 0 1px 1px rgba(0, 0, 0, .05);
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        @page {
+            margin: 40px 60px;
+            /* Margin lebih besar */
         }
     </style>
-    @if($invoice->duplicate_header)
-        <style>
-            @page {
-                margin-top: 140px;
-            }
-
-            header {
-                top: -100px;
-                position: fixed;
-            }
-        </style>
-    @endif
 </head>
 
 <body>
     <header>
-        <div style="position:absolute; left:0pt; width:250pt;">
-        </div>
-        <div style="margin-left:300pt;">
+        <div style="margin-left: 300pt; text-align: right; margin-bottom: 20px; font-size: 18px;">
             @if ($invoice->invoice_no)
-                <b>Invoice #: </b> {{ $invoice->invoice_no }}
+                <h2><b>Invoice #: </b> {{ $invoice->invoice_no }}</h2>
             @endif
-            <br />
         </div>
     </header>
+
     <main>
-        <div style="clear:both; position:relative;">
-            <div style="position:absolute; left:0pt; width:250pt;">
-            </div>
-            <div style="margin-left: 300pt;">
-                <h4>Invoice Details:</h4>
-                <div class="panel panel-default">
-                    <div class="panel-body">
-                        Created By :{{ $invoice->created_by }}<br />
-                        Tanggal Invoice: {{ \Carbon\Carbon::parse($invoice->invoice_date)->isoFormat('DD-MM-YYYY') }}<br />
-                        Tanggal Lunas: {{ \Carbon\Carbon::parse($invoice->due_date)->isoFormat('DD-MM-YYYY') }}<br />
-                    </div>
-                </div>
+        <h3><strong>Invoice Information:</strong></h3>
+        <div class="panel">
+            <div class="panel-body">
+                Created By      : {{ $invoice->created_by }}<br>
+                Tanggal Invoice : {{ \Carbon\Carbon::parse($invoice->invoice_date)->isoFormat('DD-MM-YYYY') }}<br>
+                Tanggal Lunas   : {{ \Carbon\Carbon::parse($invoice->due_date)->isoFormat('DD-MM-YYYY') }}<br>
             </div>
         </div>
-        <h3>Invoice Items:</h3>
-        <table class="table table-bordered">
+
+        <h3 style="margin-top: 20px"><strong>Invoice Items:</strong></h3>
+        <table>
             <thead>
                 <tr>
                     <th>#</th>
@@ -139,7 +106,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($invoice->items as $item)
+                @foreach ($items as $item)
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $item->product_name }}</td>
@@ -150,23 +117,21 @@
                         <td>{{ 'Rp ' . number_format($item->total_price, 0, ',', '.') }}</td>
                     </tr>
                 @endforeach
-                    <tr>
-                        <td colspan="5" class="text-center"><strong>Total</strong></td>
-                        <td>{{ $invoice->total_quantity }}</td>
-                        <td>{{ 'Rp ' . number_format($invoice->total_price, 0, ',', '.') }}</td>
-                    </tr>
+                <tr>
+                    <td colspan="5" class="text-center"><strong>Total</strong></td>
+                    <td>{{ $items->sum('quantity') }}</td>
+                    <td>{{ 'Rp ' . number_format($items->sum('total_price'), 0, ',', '.') }}</td>
+                </tr>
             </tbody>
         </table>
-        
     </main>
 
-    <!-- Page count -->
+    <!-- Script untuk nomor halaman -->
     <script type="text/php">
-            if (isset($pdf) && $GLOBALS['with_pagination'] && $PAGE_COUNT > 1) {
-                $pageText = "{PAGE_NUM} of {PAGE_COUNT}";
-                $pdf->page_text(($pdf->get_width()/2) - (strlen($pageText) / 2), $pdf->get_height()-20, $pageText, $fontMetrics->get_font("DejaVu Sans, Arial, Helvetica, sans-serif", "normal"), 7, array(0,0,0));
-            }
-        </script>
+        if (isset($pdf)) {
+            $pdf->page_text(255, 810, "Halaman {PAGE_NUM} dari {PAGE_COUNT}", null, 10, array(0, 0, 0));
+        }
+    </script>
 </body>
 
 </html>

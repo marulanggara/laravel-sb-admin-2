@@ -30,7 +30,7 @@
                     <form action="{{ route('suppliers.index') }}" method="get">
                         <div class="input-group">
                             @can('list supplier')
-                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for..."
+                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search by Supplier name or PIC name"
                                 aria-label="Search" aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button">
@@ -38,7 +38,7 @@
                                 </button>
                             </div>
                             @else
-                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for..."
+                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search by Supplier name or PIC name"
                                 aria-label="Search" aria-describedby="basic-addon2" disabled>
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button" disabled>
@@ -145,7 +145,7 @@
                     </tbody>
                 </table>
                 <div class="d-flex justify-content-center mt-3">
-                    {{ $suppliers->links() }}
+                    {{ $suppliers->appends(['per_page' => request()->per_page])->links() }}
                 </div>
             </div>
         </div>

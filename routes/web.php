@@ -15,6 +15,8 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\IncomeController;
+use App\Http\Controllers\ExpenseController;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
@@ -28,6 +30,7 @@ Auth::routes();
 // Route Middleware
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
+    Route::get('/home/chart', [HomeController::class, 'chart']);
     
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -38,6 +41,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/units/store', [UnitController::class, 'store'])->name('units.store');
     Route::put('/units/{id}', [UnitController::class, 'update'])->name('units.update');
     Route::delete('/units/{id}', [UnitController::class, 'destroy'])->name('units.destroy');
+    Route::get('/units/logs', [UnitController::class, 'showLog'])->name('units.logs');
 
     // Route products
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
@@ -48,7 +52,6 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/products/{id}', [ProductController::class, 'update'])->name('products.update');
     Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('products.destroy');
     Route::get('/products/logs', [ProductController::class, 'showLog'])->name('products.logs');
-
 
     //  Route generate unique code
     Route::get('/generate-product-code', function() {
@@ -77,8 +80,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/payments/store', [PaymentController::class, 'store'])->name('payments.store');
     Route::post('/payments/process', [PaymentController::class, 'processPayment'])->name('payments.process');
     Route::get('/payments/logs', [PaymentController::class, 'showLog'])->name('payments.logs');
-    Route::get('/get-warehouse-product', [ProductController::class, 'getWarehouseProduct'])->name('get-warehouse-product');
-    Route::get('/get-product-detail/{id}', [ProductController::class, 'getProductDetail'])->name('get-product-detail');
+
 
     // Route Payments status
     Route::post('/payments/update-status/{id}', [PaymentController::class, 'updateStatus'])->name('payments.update-status');
@@ -91,7 +93,25 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/warehouses/{id}/show', [WarehouseController::class, 'show'])->name('warehouses.show');
     Route::put('/warehouses/{id}', [WarehouseController::class, 'update'])->name('warehouses.update');
     Route::get('/warehouses/logs', [WarehouseController::class, 'showLog'])->name('warehouses.logs');
-    
+
+
+    // Route invoice
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
+    Route::get('/invoices/{id}/show', [InvoiceController::class, 'show'])->name('invoice.show');
+    Route::get('/invoices/add', [InvoiceController::class, 'create'])->name('invoice.add');
+    Route::post('/invoices/store', [InvoiceController::class, 'store'])->name('invoice.store');
+    Route::get('/get-product-stock/{product_id}', [InvoiceController::class, 'getProductStock']);
+    Route::get('/invoices/{id}/download', [InvoiceController::class, 'downloadPdf'])->name('invoice.download');
+    Route::get('/invoices/logs', [InvoiceController::class, 'showLog'])->name('invoice.logs');
+
+    // Route Income
+    Route::get('/incomes', [IncomeController::class, 'index'])->name('incomes.index');
+    Route::get('/incomes/show', [IncomeController::class, 'show'])->name('incomes.show');
+
+    // Route Expense
+    Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+    Route::get('/expenses/show', [ExpenseController::class, 'show'])->name('expenses.show');
+
     // Route roles
     Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
     Route::get('/roles/{id}/show', [RoleController::class, 'show'])->name('roles.show');
@@ -100,15 +120,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/roles/store', [RoleController::class, 'store'])->name('roles.store');
     Route::put('/roles/{id}/update', [RoleController::class, 'update'])->name('roles.update');
     Route::delete('/roles/{id}/destroy', [RoleController::class, 'destroy'])->name('roles.destroy');
-
-    // Route invoice
-    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
-    Route::get('/invoices/{id}/show', [InvoiceController::class, 'show'])->name('invoice.show');
-    Route::get('/invoices/add', [InvoiceController::class, 'create'])->name('invoice.add');
-    Route::post('/invoices/store', [InvoiceController::class, 'store'])->name('invoice.store');
-    Route::get('/get-product-stock/{product_id}', [InvoiceController::class, 'getProductStock']);
-    Route::get('/search-products', [InvoiceController::class, 'searchProducts']);
-    Route::get('/invoices/{id}/download', [InvoiceController::class, 'downloadPdf'])->name('invoice.download');
 
 
     // Route permissions

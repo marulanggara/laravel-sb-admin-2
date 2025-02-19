@@ -74,10 +74,12 @@
                     <!-- Checkbox for Barang Masuk (Received) -->
                     <div class="form-group">
                         <label for="is_received">Barang Masuk</label>
-                        <input type="checkbox" name="is_received" id="is_received" 
+                        <input type="hidden" name="is_received" value="0">
+
+                        <input type="checkbox" name="is_received" id="is_received" class="larger" value="1"
                                {{ $payment->is_received ? 'checked' : '' }} 
                                @if($payment->status == 'lunas' || $payment->status == 'cancelled') disabled @endif
-                               onchange="toggleFields(this)">
+                               >
                     </div>
 
                     <!-- Save Button -->
@@ -129,6 +131,37 @@
                 currency: 'IDR'
             }).format(total);
         }
+
+        // Event listerner untuk dropdown status
+        $('#payment-status').on('change', function () {
+            if($(this).val() == 'lunas') {
+                $('#is_received').prop('checked', true);
+                $('input[name="is_received"]').val('1');  // Pastikan is_received terisi '1'
+                $('#is_received').prop('disabled', true);                
+            } else if($(this).val() == 'cancelled') {
+                $('#is_received').prop('checked', false);
+                $('#is_received').prop('disabled', true);
+            } else {
+                $('#is_received').prop('disabled', false);
+            } 
+        });
+
+        // Fungsi untuk menonaktifkan opsi"Cancelled" jika barang sudah masuk
+        function toggleCancelledOption() {
+            if ($('#is_received').is(':checked')) {
+                $('#payment-status option[value="cancelled"]').prop('disabled', true);
+            } else {
+                $('#payment-status option[value="cancelled"]').prop('disabled', false);
+            }
+        }
+
+        // Panggil fungsi saat halaman dimuat
+        toggleCancelledOption();
+
+        // Event listener untuk perubahan checkbox "Barang Masuk"
+        $('#is_received').on('change', function () {
+            toggleCancelledOption();
+        });
 
         // Format total_price pada table
         $('.total-price, .price').each(function () {

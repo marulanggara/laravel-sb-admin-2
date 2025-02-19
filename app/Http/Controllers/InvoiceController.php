@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Log\InvoiceHistory;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use DB;
@@ -59,125 +60,73 @@ class InvoiceController extends Controller
 
     public function getProductStock($product_id)
     {
-        $warehouse = Warehouse::where('product_id', $product_id)
-            ->where('quantity', '>', 0) // Hanya stok yang tersedia
-            ->orderBy('created_at', 'asc') // FIFO: stok masuk pertama digunakan dulu
-            ->first();
+        $stockData = Warehouse::getAvailableStockByProductId($product_id);
 
-        if ($warehouse) {
-            return response()->json([
-                'warehouse_id' => $warehouse->id,
-                'product_code' => $warehouse->product->code,
-                'unit_name' => $warehouse->unit->name,
-                'selling_price' => $warehouse->selling_price,
-                'available_stock' => $warehouse->quantity
-            ]);
+        if ($stockData) {
+            return response()->json($stockData);
         }
-
         return response()->json(['error' => 'No stock available'], 404);
     }
 
     public function store(Request $request)
     {
+        // dd($request->all());
         $request->validate([
             'items.*.warehouse_id' => 'required',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        DB::transaction(function () use ($request) {
-            $invoice = Invoice::create([
-                'invoice_no' => $request->invoice_no,
-                'invoice_date' => now(),
-                'due_date' => now()->addDays(30),
-                'created_by' => auth()->user()->name,
-                'total_price' => 0,
-                'created_at' => now(),
-            ]);
-
-            $totalPrice = 0;
-            foreach ($request->items as $item) {
-                $warehouse = Warehouse::findOrFail($item['warehouse_id']);
-                $totalItemPrice = $warehouse->selling_price * $item['quantity'];
-
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'warehouse_id' => $warehouse->id,
-                    'product_id' => $warehouse->product_id,
-                    'product_name' => $warehouse->product->name,
-                    'product_code' => $warehouse->product->code,
-                    'unit_name' => $warehouse->unit->name,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $warehouse->selling_price,
-                    'total_price' => $totalItemPrice,
-                    'created_at' => now(),
-                ]);
-
-                $warehouse->decrement('quantity', $item['quantity']);
-                $totalPrice += $totalItemPrice;
-            }
-            
-            $invoice->update(['total_price' => $totalPrice]);
-        });
-
-        return redirect()->route('invoice.add')->with('success', 'Invoice berhasil dibuat!');
+        Invoice::addInvoice($request);
+        return redirect()->route('invoice.index')->with('success', 'Invoice berhasil dibuat!');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    // InvoiceController.php
     public function show($id)
     {
         // Ambil data invoice berdasarkan ID
-        $invoice = Invoice::with('items')->findOrFail($id);
-        // Kirim data invoice dan item invoice ke view
-        return view('invoice.show', compact('invoice'));
+        $invoice = DB::table('invoices')->where('id', $id)->first();
+        // Kelompokkan item dengan product_id yang sama
+        $items = DB::table('invoice_items')
+        ->select('product_id', 'product_name', 'product_code', DB::raw('MIN(unit_price) as unit_price'), DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(total_price) as total_price'))
+        ->where('invoice_id', $id)
+        ->groupBy('product_id', 'product_name', 'product_code')
+        ->get();
+
+        return view('invoice.show', compact('invoice', 'items'));
     }
 
     public function downloadPdf($id)
     {
         // Ambil data invoice berdasarkan ID
-        $invoice = Invoice::with('items')->findOrFail($id);
-        // Generate PDF dari tampilan blade
-        $pdf = Pdf::loadView('invoice.pdf', compact('invoice'));
+        $invoice = DB::table('invoices')->where('id', $id)->first();
+
+        // Kelompokkan item dengan product_id yang sama
+        $items = DB::table('invoice_items')
+            ->select(
+                'product_id',
+                'product_name',
+                'product_code',
+                'unit_name',
+                DB::raw('MIN(unit_price) as unit_price'), // Harga satuan diambil dari harga minimum (karena harus sama)
+                DB::raw('SUM(quantity) as quantity'), // Menjumlahkan jumlah barang
+                DB::raw('SUM(total_price) as total_price') // Menjumlahkan total harga
+            )
+            ->where('invoice_id', $id)
+            ->groupBy('product_id', 'product_name', 'product_code', 'unit_name')
+            ->get();
+
+        // Generate PDF dari tampilan Blade
+        $pdf = Pdf::loadView('invoice.pdf', compact('invoice', 'items'))
+            ->setPaper('a4', 'portrait')
+            ->setOption('isHTML5ParserEnabled', true)
+            ->setOption('isPhpEnabled', true)
+            ->setOption('dpi', 150);
         // Mengunduh PDF
         return $pdf->download('Invoice_' . $invoice->invoice_no . '.pdf');
     }
 
-    public function searchProducts(Request $request)
+    public function showLog()
     {
-        $search = $request->get('q');
-
-        $products = Product::whereRaw("LOWER(name) LIKE ?", ['%' . strtolower($search) . '%'])
-                ->whereHas('warehouses', function ($query) {
-                $query->where('quantity', '>', 0);
-            })
-            ->limit(10)
-            ->get();
-
-        $results = $products->map(function ($product) {
-            // Mengambil warehouse dengan stok tersedia menggunakan FIFO
-            $warehouse = $product->warehouses()
-                ->where('quantity', '>', 0)
-                ->orderBy('created_at', 'asc')
-                ->first();
-
-            if (!$warehouse) {
-                return null; // Meskipun seharusnya sudah terpenuhi kondisi whereHas
-            }
-
-            return [
-                'id' => $product->id,
-                'text' => $product->name,
-                'available_stock' => $warehouse->quantity,
-                'warehouse_id' => $warehouse->id,
-                'product_code' => $warehouse->product->code,
-                'unit_name' => $warehouse->unit->name,
-                'selling_price' => $warehouse->selling_price,
-            ];
-        })->filter()->sortBy('text')->values(); // Menghapus data null dan mereset index array
-
-        return response()->json(['results' => $results]);
+        $logs = InvoiceHistory::with('invoice')->latest()->paginate(25);
+        return view('invoice.logs', compact('logs'));
     }
-
 }

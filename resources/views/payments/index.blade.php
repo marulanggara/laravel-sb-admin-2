@@ -30,7 +30,7 @@
                     <form action="{{ route('payments.index') }}" method="get">
                         @can('list payment')
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search for..."
+                            <input type="text" class="form-control bg-light border-0 small" name="search" value="{{ request()->search }}" placeholder="Search by Supplier Name or Status"
                                 aria-label="Search" aria-describedby="basic-addon2">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button">
@@ -40,7 +40,7 @@
                         </div>
                         @else
                         <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" name="search" placeholder="Search for..."
+                            <input type="text" class="form-control bg-light border-0 small" name="search" placeholder="Search by Supplier Name or Status"
                             aria-label="Search" aria-describedby="basic-addon2" disabled>
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="button" disabled>
@@ -79,6 +79,7 @@
                             <th>Quantity</th>
                             <th>Total Price</th>
                             <th>Status</th>
+                            <th>Created At</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -104,7 +105,9 @@
                                             <span class="badge badge-danger">Cancelled</span>
                                         @else
                                             <span class="badge badge-secondary">{{ ucfirst($payment->status) }}</span>
-                                        @endif</td>                                   
+                                        @endif
+                                    </td>
+                                    <td>{{ \Carbon\Carbon::parse($payment->created_at)->format('d-m-Y, H:i:s') }}</td>                                   
                                     <td>
                                         @can('update payment')
                                             <a href="{{ route('payments.show', $payment->id) }}" class="btn btn-sm transparent"><i class="fa-solid fa-eye fa-lg"></i></a>
@@ -118,7 +121,7 @@
                     </tbody>
                 </table>
                 <div class="d-flex justify-content-center mt-3">
-                    {{ $payments->links() }}
+                    {{ $payments->appends(['per_page' => request()->per_page])->links() }}
                 </div>
             </div>
         </div>
